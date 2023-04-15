@@ -1,45 +1,39 @@
 import socket
-import sys
-import json
 import os
 
-HOST = "127.0.0.1" # Standard loopback interface address (localhost), can be hostname, IP address or empty string.
-PORT = 65432 # Port to listen on (non-privileged ports are > 1023)
+HOST = "127.0.0.1"
+PORT = 65432
 
-SERVER_DIR = "Server" # Directory containing the file to be sent
+# set the path to the directory containing the files
+file_dir = "Server"
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.bind((HOST, PORT))
+    s.listen()
+    print(f"Server is awaiting connection at {HOST}:{PORT}! Make sure to turn on the client connection!")
+    conn, addr = s.accept()
+    print(f"Server has connected! Connected to {addr}!")
+    with conn:
+        print(f"Connected by {addr}")
+        while True:
+            data = conn.recv(1024).decode("utf-8")
+            if not data:
+                break
 
-    try:
-        s.bind((HOST, PORT))
-        s.listen()
-        print("Server is awaiting connection! Make sure to turn on the client connection!")
-        conn, addr = s.accept()
-        print(f"Server has connected! Connected to {addr}!")
-        with conn:
-            print(f"Connected by {addr}")
-            while True:
-                data = conn.recv(1024)
-                if not data:
-                    break
-                request = json.loads(data.decode('utf-8'))
-                print(f"Request received: {request}")
+            # check if the requested file exists
+            file_path = os.path.join(file_dir, data)
+            if not os.path.exists(file_path):
+                conn.sendall("ERROR: File does not exist".encode("utf-8"))
+                continue
 
-                if request == "hello.txt":
-                    file_path = os.path.join(SERVER_DIR, request)
-                    if os.path.exists(file_path):
-                        with open(file_path, "rb") as f:
-                            file_data = f.read()
-                        conn.sendall(file_data)
-                        print(f"{request} sent to client")
-                    else:
-                        error = f"{request} not found on the server"
-                        conn.sendall(error.encode("utf-8"))
-                        print(error)
-                else:
-                    error = f"{request} is not a valid request"
-                    conn.sendall(error.encode("utf-8"))
-                    print(error)
+            # open the requested file and read its contents
+            with open(file_path, "rb") as f:
+                file_contents = f.read()
 
-    except KeyboardInterrupt:
-        print("Caught keyboard interrupt, exiting")
+            # send the file size to the client
+            file_size = len(file_contents)
+            conn.sendall(str(file_size).encode("utf-8"))
+
+            # send the file contents to the client
+            conn.sendall(file_contents)
+            print(f"File '{data}' ({file_size} bytes) has been sent to the client!")

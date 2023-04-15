@@ -1,37 +1,35 @@
 import socket
-import sys
-import json
 import os
 
-HOST = "127.0.0.1" # The server's hostname or IP address
-PORT = 65432 # The port used by the server
+HOST = "127.0.0.1"
+PORT = 65432
 
-CLIENT_DIR = "Client" # Directory where the file will be saved
+# set the path to the directory where the files will be saved
+file_dir = "Client"
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    addr = (HOST,PORT)
-    print(f"Accepted connection from {addr}")
-    s.connect((HOST,PORT))
-    connection = True
-    while connection:
-        request = input("Enter the name of the file you want to request from the server (e.g. hello.txt): ")
-        s.sendall(json.dumps(request).encode("utf-8"))
+    s.connect((HOST, PORT))
+    print(f"Connected to server at {HOST}:{PORT}!")
 
-        data = s.recv(1024)
+    while True:
+        # get the name of the file to be requested
+        file_name = input("Enter the name of the file to be requested: ")
 
-        if data.startswith(b"Error:"):
-            error = data.decode("utf-8").strip()
-            print(error)
-        else:
-            file_path = os.path.join(CLIENT_DIR, request)
-            with open(file_path, "wb") as f:
-                f.write(data)
-            print(f"{request} received and saved in {CLIENT_DIR}")
+        # send the file name to the server
+        s.sendall(file_name.encode("utf-8"))
 
-        user_input = input('Would you like to continue or end the program? Press 9 to exit! Else press 1 to continue : ')
-        if user_input == '9':
-            connection = False
-        else:
+        # receive the size of the file from the server
+        file_size = int(s.recv(1024).decode("utf-8"))
+
+        if file_size < 0:
+            print(f"ERROR: {s.recv(1024).decode('utf-8')}")
             continue
 
-    print("\nClient Socket Closed!\n")
+        # receive the file contents from the server
+        file_contents = s.recv(file_size)
+
+        # save the file contents to disk
+        file_path = os.path.join(file_dir, file_name)
+        with open(file_path, "wb") as f:
+            f.write(file_contents)
+        print(f"File '{file_name}' ({file_size} bytes) has been saved to {file_path}!")
