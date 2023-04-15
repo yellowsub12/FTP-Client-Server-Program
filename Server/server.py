@@ -1,10 +1,10 @@
 import socket
 import os
+import sys
 
 HOST = "127.0.0.1"
 PORT = 65432
 
-# set the path to the directory where the files will be saved
 file_dir = "Server"
 
 # create the server socket
@@ -28,7 +28,7 @@ while True:
             # receive the action to be taken (download or upload)
             action = conn.recv(1024).decode("utf-8")
 
-            if action.lower() == "download":
+            if action.lower() == "get":
                 # receive the name of the file to be sent
                 file_name = conn.recv(1024).decode("utf-8")
 
@@ -50,7 +50,7 @@ while True:
 
                 print(f"File '{file_name}' ({file_size} bytes) has been sent to {addr}!")
 
-            elif action.lower() == "upload":
+            elif action.lower() == "put":
                 # receive the name of the file to be uploaded
                 file_name = conn.recv(1024).decode("utf-8")
 
@@ -69,6 +69,56 @@ while True:
 
                 # send a response to the client
                 conn.sendall("OK".encode("utf-8"))
+            
+            elif action.lower() == "change":
+                # receive the old and new file names
+                file_names = conn.recv(1024).decode("utf-8").split()
+                
+                # check if the message contains two items
+                if len(file_names) != 2:
+                    conn.sendall("-1".encode("utf-8"))
+                    conn.sendall("Invalid input: please enter the old and new file names separated by a space.".encode("utf-8"))
+                    continue
+                
+                old_file_name, new_file_name = file_names
+                
+                # check if the old file exists
+                old_file_path = os.path.join(file_dir, old_file_name)
+                if not os.path.exists(old_file_path):
+                    conn.sendall("-1".encode("utf-8"))
+                    conn.sendall(f"File '{old_file_name}' does not exist in {file_dir}!".encode("utf-8"))
+                    continue
+
+                # check if the new file already exists
+                new_file_path = os.path.join(file_dir, new_file_name)
+                if os.path.exists(new_file_path):
+                    conn.sendall("-1".encode("utf-8"))
+                    conn.sendall(f"File '{new_file_name}' already exists in {file_dir}!".encode("utf-8"))
+                    continue
+
+                # rename the file
+                os.rename(old_file_path, new_file_path)
+                conn.sendall("0".encode("utf-8"))
+                conn.sendall(f"File '{old_file_name}' has been renamed to '{new_file_name}'!".encode("utf-8"))
+
+            # check if the client sent the "bye" command 
+            elif action.lower() == "bye":
+                print("Exiting program...")
+                conn.close()
+                sys.exit()
+            
+
+
+            # help command to list the commands
+            elif action.lower() == "help":
+                command_list = "Here's a list of commands : put filename (upload), get filename (download), change OldFileName NewFileName, help and bye"
+                command_list_len = str(len(command_list))
+                response = command_list_len + command_list
+                conn.sendall(response.encode("utf-8"))
+
+
+            
+            
             else:
-                conn.sendall(f"Invalid action '{action}'! Please enter 'download' or 'upload'.".encode("utf-8"))
+                conn.sendall(f"Invalid action '{action}'! Please enter 'download', 'rename', or 'upload'.".encode("utf-8"))
                 continue
