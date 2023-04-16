@@ -2,8 +2,11 @@ import socket
 import os
 import sys
 
-HOST = "127.0.0.1"
-PORT = 65432
+#HOST = "127.0.0.1"
+#PORT = 65432
+
+HOST = input("Please provide the IP address : ")
+PORT = int(input("Please provide the port number : "))
 
 file_dir = "Server"
 
@@ -121,9 +124,6 @@ while True:
         command_list_len = str(len(command_list)).zfill(4)
         response = command_list_len + command_list
         s.sendto(response.encode("utf-8"), addr)
-
-
-
 
     else:
         # send error message to client if action is invalid

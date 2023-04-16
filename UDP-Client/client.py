@@ -2,8 +2,11 @@ import socket
 import os
 import sys
 
-HOST = "127.0.0.1"
-PORT = 65432
+#HOST = "127.0.0.1"
+#PORT = 65432
+
+HOST = input("Please provide the IP address : ")
+PORT = int(input("Please provide the port number : "))
 
 file_dir = "Client"
 
@@ -11,19 +14,18 @@ file_dir = "Client"
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 print("Welcome to the file transfer system!")
-
 while True:
     # ask the user to input the action to be taken (download or upload)
-    action = input("Enter 'get' to download a file, 'put' to upload a file, or 'change' to change the name of a file : ").lower()
+    user_input = input("Enter a command please : ").lower().split()
 
     # send the action to the server
-    s.sendto(action.encode("utf-8"), (HOST, PORT))
+    s.sendto(user_input[0].encode("utf-8"), (HOST, PORT))
 
-    if action == "get":
-        # get user input for file name
-        file_name = input("Enter file name to download: ")
+    if user_input[0] == "get":
+        # get filename from user input
+        file_name = user_input[1]
 
-        # send the file name to the server
+        # send the filename to the server
         s.sendto(file_name.encode("utf-8"), (HOST, PORT))
 
         # receive the size of the file to be received
@@ -44,10 +46,9 @@ while True:
             f.write(file_contents)
             print(f"File '{file_name}' ({file_size} bytes) has been downloaded to {file_dir}!")
 
-
-    elif action == "put":
+    elif user_input[0] == "put":
         # get user input for file name
-        file_name = input("Enter file name to upload: ")
+        file_name = user_input[1]
 
         # check if the file exists
         file_path = os.path.join(file_dir, file_name)
@@ -81,10 +82,10 @@ while True:
 
 
 
-    elif action == "change":
+    elif user_input[0] == "change":
         # get user input for old and new file names
-        old_file_name = input("Enter the old file name: ")
-        new_file_name = input("Enter the new file name: ")
+        old_file_name = user_input[1]
+        new_file_name = user_input[2]
 
         # send the old and new file names to the server
         s.sendto(f"{old_file_name} {new_file_name}".encode("utf-8"), (HOST, PORT))
@@ -97,14 +98,14 @@ while True:
         else:
             print(f"Failed to rename file '{old_file_name}' to '{new_file_name}' on the server: {response}")
 
-    elif action.lower() == "bye":
+    elif user_input[0] == "bye":
             # send the "bye" command to the server and close the socket
             s.sendto("bye".encode("utf-8"), (HOST, PORT))
             s.close()
             print("Exiting program...")
             break
 
-    elif action.lower() == "help":
+    elif user_input[0] == "help":
         print("Requesting list of commands from server!\n")
         data, addr = s.recvfrom(1024)
         command_list_len = int(data[:4])
@@ -115,6 +116,6 @@ while True:
 
 
     else:
-        print(f"Invalid action '{action}'! Please 'get' to download a file, 'put' to upload a file, or 'change' to change the name of a file : ")
+        print(f"Invalid action '{user_input[0]}'! Please 'get' to download a file, 'put' to upload a file, or 'change' to change the name of a file : ")
         continue
 s.close()
