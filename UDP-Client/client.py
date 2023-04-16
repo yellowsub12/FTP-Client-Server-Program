@@ -112,9 +112,6 @@ while True:
         final_command_list = data[4:].decode("utf-8")
         print(final_command_list)
 
-
-
-
     else:
         print(f"Invalid action '{user_input[0]}'! Please 'get' to download a file, 'put' to upload a file, or 'change' to change the name of a file : ")
         continue
