@@ -4,13 +4,13 @@ import sys
 
 # Ali Turkman 
 
-protocol_choice = input("Choose 1 for TCP, or 2 for UDP: ")
 
 #HOST = "127.0.0.1"
 #PORT = 65432
 
 HOST = input("Please provide the IP address : ")
 PORT = int(input("Please provide the port number : "))
+protocol_choice = input("Choose 1 for TCP, or 2 for UDP: ")
 
 file_dir = "Server"
 
