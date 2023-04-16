@@ -103,5 +103,4 @@ while True:
     else:
         print(f"Invalid action '{action}'! Please 'get' to download a file, 'put' to upload a file, or 'change' to change the name of a file : ")
         continue
-
 s.close()
