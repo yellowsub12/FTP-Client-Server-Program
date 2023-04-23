@@ -44,7 +44,7 @@ if protocol_choice == "1":
 
         with conn:
             while True:
-                # receive the action to be taken (download or upload)
+                # receive the Res-code and check which it matches
                 action = conn.recv(1)
                 userRequest = (int.from_bytes(action, 'big')) >> 5
 
@@ -79,7 +79,6 @@ if protocol_choice == "1":
 
                     print(
                         f"File '{file_name}' ({file_size} bytes) has been sent to {addr}!")
-
                 elif userRequest == PUT:
                     # receive the name of the file to be uploaded
                     file_nameLength = int.from_bytes(
@@ -153,41 +152,42 @@ elif protocol_choice == "2":
     s.bind((HOST, PORT))
 
     print(
-        f"Server is awaiting connection at {HOST}:{PORT}! Make sure to turn on the client connection!")
+        f"Server is awaiting Requests from Clients")
 
     while True:
         # receive data from client
-        data, addr = s.recvfrom(1)
-        print(f"Server has connected! Connected to {addr}!")
+        data, addr = s.recvfrom(1024)
+        byte1 = data[0].to_bytes(1, 'big')
 
-        # decode the action to be taken (download or upload)
-        userRequest = (int.from_bytes(data, 'big')) >> 5
+        # userRequest = byte1 >> 5
+        userRequest = (int.from_bytes(byte1, 'big')) >> 5
         if userRequest == GET:
+            file_nameLength = int.from_bytes(
+                byte1, 'big') - (0b00100000)  # removing GET bits
             # receive the name of the file to be sent
-            data, addr = s.recvfrom(1024)
-            file_name = data.decode("utf-8")
+            file_name = data[1:len(data)]
+            decodedFile_name = file_name.decode()
 
             # check if the file exists
-            file_path = os.path.join(file_dir, file_name)
+            file_path = os.path.join(file_dir, decodedFile_name)
             if not os.path.exists(file_path):
-                s.sendto("-1".encode("utf-8"), addr)
-                s.sendto(
-                    f"File '{file_name}' does not exist in {file_dir}!".encode("utf-8"), addr)
+                MSGResponse = (ERROR_FILE_NOT_FOUND <<
+                               5).to_bytes(1, 'big')
+                s.sendto(MSGResponse, addr)
                 continue
 
             # send the size of the file to be sent
             file_size = os.path.getsize(file_path)
-            s.sendto(str(file_size).encode("utf-8"), addr)
-
+            byte1 = ((GET_CORRECT << 5) +
+                     len(decodedFile_name)).to_bytes(1, 'big')
+            byte2 = decodedFile_name.encode()
+            byte3 = file_size.to_bytes(4, 'big')
             # send the contents of the file to be sent
             with open(file_path, "rb") as f:
-                while True:
-                    file_contents = f.read(1024)
-                    if not file_contents:
-                        # indicate end of file by sending an empty datagram
-                        s.sendto(b"", addr)
-                        break
-                    s.sendto(file_contents, addr)
+                file_contents = f.read()
+            # Sending Header + File Data
+            MSGResponse = byte1 + byte2 + byte3 + file_contents
+            s.sendto(MSGResponse, addr)
 
             print(
                 f"File '{file_name}' ({file_size} bytes) has been sent to {addr}!")
