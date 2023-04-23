@@ -20,7 +20,7 @@ HOST = "127.0.0.1"
 PORT = 65432
 protocol_choice = input("Choose 1 for TCP, or 2 for UDP: ")
 
-file_dir = "Server"
+file_dir = "./"
 
 if protocol_choice == "1":
     print("You chose TCP!")

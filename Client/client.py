@@ -17,7 +17,7 @@ HELP_RESPONSE = 0b110
 
 # HOST = "127.0.0.1"
 # PORT = 65432
-# Starting argument: python client.py 127.0.0.1 65432 0
+# Starting argument: python3 client.py 127.0.0.1 65432 0
 
 HOST = sys.argv[1]
 PORT = int(sys.argv[2])
@@ -76,7 +76,7 @@ if protocol_choice == "1":
                         file_contents = s.recv(file_size)
 
                         # save the contents of the file to disk
-                        file_path = file_dir + "/" + file_name
+                        file_path = "./" + file_name
                         with open(file_path, "wb") as f:
                             f.write(file_contents)
 
@@ -98,8 +98,8 @@ if protocol_choice == "1":
                 else:
 
                     # check if the file exists
-                    file_path = file_dir + "/" + file_name
-                    if not os.path.exists(file_path):
+                    file_path = "./" + file_name
+                    if not os.path.isfile(file_path):
                         print(
                             f"Error: file '{file_name}' does not exist in {file_dir}!")
                         continue
