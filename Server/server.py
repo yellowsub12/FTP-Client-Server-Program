@@ -2,21 +2,29 @@ import socket
 import os
 import sys
 
-# Ali Turkman 
+PUT = 0b000
+GET = 0b001
+CHANGE = 0b010
+HELP = 0b011
+
+PUT_CHANGE_CORRECT = 0b010
+GET_CORRECT = 0b001
+ERROR_FILE_NOT_FOUND = 0b010
+ERROR_UNKNOWN_REQUEST = 0b011
+ERROR_UNSUCESSFUL_CHANGE = 0b101
+HELP_RESPONSE = 0b110
+# Ali Turkman
 
 
-#HOST = "127.0.0.1"
-#PORT = 65432
-
-HOST = input("Please provide the IP address : ")
-PORT = int(input("Please provide the port number : "))
+HOST = "127.0.0.1"
+PORT = 65432
 protocol_choice = input("Choose 1 for TCP, or 2 for UDP: ")
 
 file_dir = "Server"
 
 if protocol_choice == "1":
     print("You chose TCP!")
-    
+
     # create the server socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -24,9 +32,10 @@ if protocol_choice == "1":
     s.bind((HOST, PORT))
 
     # start listening for incoming connections
-    s.listen()
+    s.listen(1)
 
-    print(f"Server is awaiting connection at {HOST}:{PORT}! Make sure to turn on the client connection!")
+    print(
+        f"Server is awaiting connection at {HOST}:{PORT}! Make sure to turn on the client connection!")
 
     while True:
         # accept a new connection
@@ -35,37 +44,50 @@ if protocol_choice == "1":
 
         with conn:
             while True:
-                # receive the action to be taken (download or upload)
-                action = conn.recv(1024).decode("utf-8")
+                # receive the Res-code and check which it matches
+                action = conn.recv(1)
+                userRequest = (int.from_bytes(action, 'big')) >> 5
 
-                if action.lower() == "get":
+                if userRequest == GET:
+
+                    file_nameLength = int.from_bytes(
+                        action, 'big') - (0b00100000)  # removing GET bits
                     # receive the name of the file to be sent
-                    file_name = conn.recv(1024).decode("utf-8")
+                    file_name = conn.recv(file_nameLength).decode()
 
                     # check if the file exists
                     file_path = os.path.join(file_dir, file_name)
                     if not os.path.exists(file_path):
-                        conn.sendall("-1".encode("utf-8"))
-                        conn.sendall(f"File '{file_name}' does not exist in {file_dir}!".encode("utf-8"))
+                        MSGResponse = (ERROR_FILE_NOT_FOUND <<
+                                       5).to_bytes(1, 'big')
+                        conn.send(MSGResponse)
                         continue
 
                     # send the size of the file to be sent
                     file_size = os.path.getsize(file_path)
-                    conn.sendall(str(file_size).encode("utf-8"))
+                    byte1 = ((GET_CORRECT << 5) +
+                             len(file_name)).to_bytes(1, 'big')
+                    byte2 = file_name.encode()
+                    byte3 = file_size.to_bytes(4, 'big')
+                    MSGResponse = byte1 + byte2 + byte3
+                    conn.send(MSGResponse)
 
                     # send the contents of the file to be sent
                     with open(file_path, "rb") as f:
                         file_contents = f.read()
-                    conn.sendall(file_contents)
+                    conn.send(file_contents)
 
-                    print(f"File '{file_name}' ({file_size} bytes) has been sent to {addr}!")
-
-                elif action.lower() == "put":
+                    print(
+                        f"File '{file_name}' ({file_size} bytes) has been sent to {addr}!")
+                elif userRequest == PUT:
                     # receive the name of the file to be uploaded
-                    file_name = conn.recv(1024).decode("utf-8")
+                    file_nameLength = int.from_bytes(
+                        action, 'big') - (0b00000000)  # removing PUT bits
+                    # receive the name of the file to be sent
+                    file_name = conn.recv(file_nameLength).decode()
 
                     # receive the size of the file to be uploaded
-                    file_size = int(conn.recv(1024).decode("utf-8"))
+                    file_size = int.from_bytes(conn.recv(4), 'big')
 
                     # receive the contents of the file to be uploaded
                     file_contents = conn.recv(file_size)
@@ -75,190 +97,170 @@ if protocol_choice == "1":
                     with open(file_path, "wb") as f:
                         f.write(file_contents)
 
-                    print(f"File '{file_name}' ({file_size} bytes) has been uploaded by {addr}!")
+                    print(
+                        f"File '{file_name}' ({file_size} bytes) has been uploaded by {addr}!")
 
                     # send a response to the client
-                    conn.sendall("OK".encode("utf-8"))
-                
-                elif action.lower() == "change":
-                    # receive the old and new file names
-                    file_names = conn.recv(1024).decode("utf-8").split()
-                    
-                    # check if the message contains two items
-                    if len(file_names) != 2:
-                        conn.sendall("-1".encode("utf-8"))
-                        conn.sendall("Invalid input: please enter the old and new file names separated by a space.".encode("utf-8"))
-                        continue
-                    
-                    old_file_name, new_file_name = file_names
-                    
+                    serverResponseMSG = (
+                        PUT_CHANGE_CORRECT << 5).to_bytes(1, 'big')
+                    conn.send(serverResponseMSG)
+
+                elif userRequest == CHANGE:
+                    OFL_length = int.from_bytes(
+                        action, 'big') - (0b01000000)  # removing CHANGE bits
+                    OFL = conn.recv(OFL_length).decode()
+                    NFL_length = int.from_bytes(conn.recv(1), 'big')
+                    NFL = conn.recv(NFL_length).decode()
+
                     # check if the old file exists
-                    old_file_path = os.path.join(file_dir, old_file_name)
+                    old_file_path = os.path.join(file_dir, OFL)
                     if not os.path.exists(old_file_path):
-                        conn.sendall("-1".encode("utf-8"))
-                        conn.sendall(f"File '{old_file_name}' does not exist in {file_dir}!".encode("utf-8"))
+                        conn.send(
+                            (ERROR_UNSUCESSFUL_CHANGE << 5).to_bytes(1, 'big'))
                         continue
 
                     # check if the new file already exists
-                    new_file_path = os.path.join(file_dir, new_file_name)
+                    new_file_path = os.path.join(file_dir, NFL)
                     if os.path.exists(new_file_path):
-                        conn.sendall("-1".encode("utf-8"))
-                        conn.sendall(f"File '{new_file_name}' already exists in {file_dir}!".encode("utf-8"))
+                        conn.send(
+                            (ERROR_UNSUCESSFUL_CHANGE << 5).to_bytes(1, 'big'))
                         continue
 
                     # rename the file
                     os.rename(old_file_path, new_file_path)
-                    conn.sendall("0".encode("utf-8"))
-                    conn.sendall(f"File '{old_file_name}' has been renamed to '{new_file_name}'!".encode("utf-8"))
-
-                # check if the client sent the "bye" command 
-                elif action.lower() == "bye":
-                    print("Exiting program...")
-                    conn.close()
-                    sys.exit()
-                
-
+                    conn.sendall((PUT_CHANGE_CORRECT << 5).to_bytes(1, 'big'))
 
                 # help command to list the commands
-                elif action.lower() == "help":
-                    command_list = "Here's a list of commands : put filename (upload), get filename (download), change OldFileName NewFileName, help and bye"
-                    command_list_len = str(len(command_list))
-                    response = command_list_len + command_list
-                    conn.sendall(response.encode("utf-8"))
+                elif userRequest == HELP:
+                    command_list = "Cmds: get,put,change,help,bye"
+                    byte1 = (HELP_RESPONSE << 5) + (len(command_list))
+                    response = byte1.to_bytes(1, 'big') + command_list.encode()
+                    conn.send(response)
 
-
-                
-                
                 else:
-                    conn.sendall(f"Invalid action '{action}'! Please enter 'download', 'rename', or 'upload'.".encode("utf-8"))
+                    response = (ERROR_UNKNOWN_REQUEST << 5).to_bytes(1, 'big')
+                    conn.send(response)
                     continue
 
 elif protocol_choice == "2":
-    print("You chose UDP!")
-
     # create the server socket
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    # bind the socket to the host and port
     s.bind((HOST, PORT))
 
     print(f"Server is awaiting connection at {HOST}:{PORT}! Make sure to turn on the client connection!")
 
     while True:
-        # receive data from client
         data, addr = s.recvfrom(1024)
         print(f"Server has connected! Connected to {addr}!")
+        opcode = data[0] >> 5
 
-        # decode the action to be taken (download or upload)
-        action = data.decode("utf-8")
+        print(f"Received opcode: {opcode}")
+        if opcode == PUT:
+            print("Initiate Put command.")
 
-        if action.lower() == "get":
-            # receive the name of the file to be sent
-            data, addr = s.recvfrom(1024)
-            file_name = data.decode("utf-8")
+            filename_length = data[0] & 0b11111
+            file_name = data[1:filename_length+1].decode('utf-8')
 
-            # check if the file exists
-            file_path = os.path.join(file_dir, file_name)
-            if not os.path.exists(file_path):
-                s.sendto("-1".encode("utf-8"), addr)
-                s.sendto(f"File '{file_name}' does not exist in {file_dir}!".encode("utf-8"), addr)
-                continue
+            file_size = int.from_bytes(data[filename_length+1:], 'big')
 
-            # send the size of the file to be sent
-            file_size = os.path.getsize(file_path)
-            s.sendto(str(file_size).encode("utf-8"), addr)
-
-            # send the contents of the file to be sent
-            with open(file_path, "rb") as f:
-                while True:
-                    file_contents = f.read(1024)
-                    if not file_contents:
-                        s.sendto(b"", addr) # indicate end of file by sending an empty datagram
-                        break
-                    s.sendto(file_contents, addr)
-
-            print(f"File '{file_name}' ({file_size} bytes) has been sent to {addr}!")
-
-
-        if action.lower() == "put":
-            # receive the name of the file to be uploaded
-            data, addr = s.recvfrom(1024)
-            file_name = data.decode("utf-8")
-
-            # receive the size of the file to be uploaded
-            data, addr = s.recvfrom(1024)
-            file_size = int(data.decode("utf-8"))
-
-            # receive the contents of the file to be uploaded
             file_contents = b""
             while len(file_contents) < file_size:
                 data, addr = s.recvfrom(1024)
                 file_contents += data
 
-            # save the contents of the file to disk
             file_path = os.path.join(file_dir, file_name)
             with open(file_path, "wb") as f:
                 f.write(file_contents)
                 print(f"File '{file_name}' ({file_size} bytes) has been uploaded by {addr}!")
+                
+                res_code = PUT_CHANGE_CORRECT
+                filename_length = len(file_name)
+                payload_byte1 = (res_code << 5) | filename_length
+                res_payload = bytes([payload_byte1]) + file_name.encode('utf-8') + file_size.to_bytes(4, 'big')
+                s.sendto(res_payload, addr)
 
-                # send a response to the client
-                s.sendto("OK".encode("utf-8"), addr)
 
-        elif action.lower() == "change":
-            # receive the old and new file names
-            data, addr = s.recvfrom(1024)
-            file_names = data.decode("utf-8").split()
+        elif opcode == GET:
+            print("Initiate get command")
+            filename_length = data[0] & 0b11111
+            file_name = data[1:filename_length+1].decode('utf-8')
+            file_path = os.path.join(file_dir, file_name)
+
+            if os.path.exists(file_path):
+                print("Now we here")
+                opcode = GET_CORRECT
+                file_name_bytes = file_name.encode('utf-8')
+                filename_length = len(file_name_bytes)
+                file_size = os.path.getsize(file_path)
+                print(file_size)
+                payload = bytes([opcode << 5 | filename_length]) + file_name_bytes + file_size.to_bytes(4, 'big')
+                s.sendto(payload, addr)
+
+
+                print("Now to send the contents!")
+                with open(file_path, "rb") as f:
+                    while True:
+                        data = f.read(1024)
+                        if not data:
+                            break
+                        s.sendto(data, addr)
+                print("Finished")
+
             
-            # check if the message contains two items
-            if len(file_names) != 2:
-                s.sendto("-1".encode("utf-8"), addr)
-                s.sendto("Invalid input: please enter the old and new file names separated by a space.".encode("utf-8"), addr)
-                continue
-            
-            old_file_name, new_file_name = file_names
-            
-            # check if the old file exists
+            else :
+                res_code = ERROR_FILE_NOT_FOUND
+                filename_length = len(file_name)
+                payload_byte1 = (res_code << 5) | filename_length
+                res_payload = bytes([payload_byte1]) + file_name.encode('utf-8') 
+                s.sendto(res_payload, addr)
+
+        elif opcode == CHANGE:
+            print("Initiate Change command.")
+            old_filename_length = data[0] & 0b00011111
+            old_file_name = data[1:old_filename_length+1].decode('utf-8')
+            new_filename_length = data[old_filename_length+1]
+            new_file_name = data[old_filename_length+2:old_filename_length+2+new_filename_length].decode('utf-8')
+
             old_file_path = os.path.join(file_dir, old_file_name)
             if not os.path.exists(old_file_path):
-                s.sendto("-1".encode("utf-8"), addr)
-                s.sendto(f"File '{old_file_name}' does not exist in {file_dir}!".encode("utf-8"), addr)
+                res_code = ERROR_UNSUCESSFUL_CHANGE
+                payload_byte1 = (res_code << 5) 
+                res_payload = bytes([payload_byte1]) 
+                s.sendto(res_payload, addr)
                 continue
-        
-            # check if the new file name already exists
+
             new_file_path = os.path.join(file_dir, new_file_name)
             if os.path.exists(new_file_path):
-                s.sendto("-1".encode("utf-8"), addr)
-                s.sendto(f"File '{new_file_name}' already exists in {file_dir}!".encode("utf-8"), addr)
+                res_code = ERROR_UNSUCESSFUL_CHANGE
+                payload_byte1 = (res_code << 5) 
+                res_payload = bytes([payload_byte1]) 
+                s.sendto(res_payload, addr)
                 continue
-        
-            # rename the file and send success message to client
+
             os.rename(old_file_path, new_file_path)
-            s.sendto("OK".encode("utf-8"), addr)
+            res_code = PUT_CHANGE_CORRECT
+            payload_byte1 = (res_code << 5) 
+            res_payload = bytes([payload_byte1]) 
+            s.sendto(res_payload, addr)
             
-            print(f"File '{old_file_name}' has been renamed to '{new_file_name}' by {addr}!")
-        
-        elif action.lower() == "bye":
-                # send a confirmation message to the client and close the socket
-                response = "Goodbye!"
-                s.sendto(response.encode("utf-8"), addr)
-                s.close()
-                print("Exiting program...")
-                sys.exit()
 
-        elif action.lower() == "help":
-            command_list = "Here's a list of commands: put filename (upload), get filename (download), change OldFileName NewFileName, help, and bye."
-            command_list_len = str(len(command_list)).zfill(4)
-            response = command_list_len + command_list
-            s.sendto(response.encode("utf-8"), addr)
+        elif opcode == HELP:
+            print("Initiate Help command.")
+            commands="Please use 'get filename' to download a file, 'put filename' to upload a file, 'change oldname newname' to change the name of a file, or 'bye' to exit the client program."
+            help_length = len(commands)
+            res_code = HELP_RESPONSE
+            payload_byte1 = (res_code << 5) 
+            res_payload = bytes([payload_byte1]) + commands.encode('utf-8') 
+            s.sendto(res_payload, addr)
 
+    
         else:
-            # send error message to client if action is invalid
-            s.sendto("-1".encode("utf-8"), addr)
-            s.sendto("Invalid action! Please enter 'get', 'put', or 'change'.".encode("utf-8"), addr)
-            continue
-
+            res_code = ERROR_UNKNOWN_REQUEST
+            error_payload = bytes([res_code << 5]) 
+            s.sendto(error_payload, addr)
+            print(f"Error: Unkwown request sent.")
 
 
 else:
     print("Invalid choice, please choose 1 or 2.")
-
