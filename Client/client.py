@@ -1,3 +1,7 @@
+# This is the client program capable of sending requests, taking commands, and receiving responses.
+# Ali Turkman - 40111059
+# Alexander Santelli - 40164629
+
 import socket
 import os
 import sys
@@ -12,8 +16,6 @@ ERROR_FILE_NOT_FOUND = 0b010
 ERROR_UNKNOWN_REQUEST = 0b011
 ERROR_UNSUCESSFUL_CHANGE = 0b101
 HELP_RESPONSE = 0b110
-# Ali Turkman - 40111059
-# Alexander Santelli - 40164629
 
 # HOST = "127.0.0.1"
 # PORT = 65432
@@ -55,7 +57,7 @@ if protocol_choice == "1":
                 if len(file_name) > 31:
                     print('The file name cannot be greater than 31 characters')
                 else:
-                    byte1 = ((GET << 5) + len(file_name)).to_bytes(1, 'big')
+                    byte1 = bytes((GET << 5) + len(file_name).to_bytes(1, 'big'))
                     byte2 = file_name.encode()
                     encodedRequestMSG = byte1 + byte2
 
@@ -96,7 +98,7 @@ if protocol_choice == "1":
                 if len(file_name) > 31:
                     print('The file name cannot be greater than 31 characters')
                 else:
-                    file_path = "./" + file_name
+                    file_path = os.path.join(file_dir, file_name)
                     if not os.path.isfile(file_path):
                         print(
                             f"Error: file '{file_name}' does not exist in {file_dir}!")
@@ -106,7 +108,7 @@ if protocol_choice == "1":
                     byte2 = file_name.encode()
                     file_size = os.path.getsize(file_path)
                     byte3 = file_size.to_bytes(4, 'big')
-                    encodedRequestMSG = byte1 + byte2 + byte3
+                    encodedRequestMSG = bytes(byte1) + byte2 + byte3
                     s.send(encodedRequestMSG)
 
                     with open(file_path, "rb") as f:
@@ -137,7 +139,7 @@ if protocol_choice == "1":
                     byte3 = len(new_file_name).to_bytes(1, 'big')
                     byte4 = new_file_name.encode()
 
-                    encodedRequestMSG = byte1 + byte2 + byte3 + byte4
+                    encodedRequestMSG = bytes(byte1) + byte2 + byte3 + byte4
                     s.send(encodedRequestMSG)
 
                     # receive response from server
@@ -162,7 +164,7 @@ if protocol_choice == "1":
                 print("Getting the commands from the server")
 
             encodedRequestMSG = (HELP << 5).to_bytes(1, 'big')
-            s.send(encodedRequestMSG)
+            s.send(bytes(encodedRequestMSG))
             # Receive and check if Res-code is correct
             response = s.recv(1)
             serverRequest = (int.from_bytes(response, 'big')) >> 5
@@ -187,6 +189,8 @@ elif protocol_choice == "2":
 
 
         if user_input[0] == "get":
+                if debug:
+                 print("Requesting list of commands from server! \n")
                 if len(user_input) < 2:
                     print('Error: must include file name after "get"')
                 else:
@@ -233,6 +237,8 @@ elif protocol_choice == "2":
                         
 
         elif user_input[0] == "put":
+            if debug:
+                print("PUT command.")
             if len(user_input) < 2:
                     print('Error: must include file name after "get"')
             else:
@@ -273,6 +279,8 @@ elif protocol_choice == "2":
 
 
         elif user_input[0] == "change":
+            if debug:
+                print("Change command.")
             if len(user_input) < 3:
                 print('Error: must include both file names after "change"')
             else:
@@ -301,6 +309,8 @@ elif protocol_choice == "2":
                     print("Change operation failed. Please retry.")
 
         elif user_input[0] == "bye":
+            if debug:
+                print("Will close socket and exit client.")
             s.close()
             print("Exiting program...")
             break

@@ -1,3 +1,6 @@
+# This is the server program capable of receiving requests, performing operations, and sending responses.
+# Ali Turkman - 40111059
+
 import socket
 import os
 import sys
@@ -6,14 +9,13 @@ PUT = 0b000
 GET = 0b001
 CHANGE = 0b010
 HELP = 0b011
-
 PUT_CHANGE_CORRECT = 0b010
 GET_CORRECT = 0b001
 ERROR_FILE_NOT_FOUND = 0b010
 ERROR_UNKNOWN_REQUEST = 0b011
 ERROR_UNSUCESSFUL_CHANGE = 0b101
 HELP_RESPONSE = 0b110
-# Ali Turkman
+
 
 
 HOST = "127.0.0.1"
