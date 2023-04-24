@@ -298,11 +298,9 @@ elif protocol_choice == "2":
                 elif res_code == ERROR_UNSUCESSFUL_CHANGE:
                     print("Unsuccessful change! No change was made.")
                 else:
-
-                    print("What???")
+                    print("Change operation failed. Please retry.")
 
         elif user_input[0] == "bye":
-            # send the "bye" command to the server and close the socket
             s.close()
             print("Exiting program...")
             break
