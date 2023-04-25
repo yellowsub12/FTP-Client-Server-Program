@@ -45,7 +45,7 @@ if protocol_choice == "1":
 
     while True:
         # ask the user to input the action to be taken (download or upload)
-        user_input = input("myftp> ").split()
+        user_input = input("myftp> ").lower().split()
 
         if user_input[0] == "get":
             # checking that command contains the filename after get
@@ -55,7 +55,7 @@ if protocol_choice == "1":
                 file_name = user_input[1]
                 # Checking if file name is less than 31 characters, so can store as 5 bits
                 if debug:
-                    print('The length of the file name is ' + len(file_name) + ' characters.')
+                    print('The length of the file name is ' + str(len(file_name)) + ' characters.')
                 if len(file_name) > 31:
                     print('The file name cannot be greater than 31 characters')
                 else:
@@ -63,14 +63,15 @@ if protocol_choice == "1":
                     byte2 = file_name.encode()
                     encodedRequestMSG = byte1 + byte2
                     if debug:
-                        print('Sending encoded Header to Server. It is ' + int.from_bytes(encodedRequestMSG, 'big') + ' bytes.')
-                    # send the name of the file to the server
+                        print('Sending encoded Header to Server. It is ' + str(encodedRequestMSG))
+                    # send the Header File in the correct Byte format
                     s.send(encodedRequestMSG)
-                    # Receive 1st byte to check which opcode is sent
+                    # Receive 1st byte to check which res-code is sent
                     response = s.recv(1)
                     serverRequest = ((int.from_bytes(response, 'big')) >> 5)
                     if debug:
-                        print('Received 1 byte from Server: ' + response)
+                        print('Received 1 byte from Server: ' + str(response))
+                        #check if correct res-code before receiving more from server
                     if serverRequest == GET_CORRECT:
                         # Getting length of the file Name
                         file_nameLength = int.from_bytes(
@@ -85,12 +86,12 @@ if protocol_choice == "1":
                         file_path = "./" + file_name
                         with open(file_path, "wb") as f:
                             f.write(file_contents)
-                        print(file_name + ' has been downloaded from server')
+                        print(f"'{file_name}' has been downloaded from server")
                         if debug:
                             print(
                             f"File '{file_name}' is {file_size} bytes and saved in {file_dir}!")
                     elif serverRequest == ERROR_FILE_NOT_FOUND:
-                        print("Could not find " + file_name + " from server")
+                        print(f"Could not find '{file_name}' from server")
                     else:
                         print('Error Occured. Failed get')
         elif user_input[0] == "put":
@@ -103,7 +104,8 @@ if protocol_choice == "1":
                 if len(file_name) > 31:
                     print('The file name cannot be greater than 31 characters')
                 else:
-                    file_path = os.path.join(file_dir, file_name)
+                    file_path = os.path.join("./", file_name)
+                    #Checking if file exists
                     if not os.path.isfile(file_path):
                         print(
                             f"Error: file '{file_name}' does not exist in {file_dir}!")
@@ -115,17 +117,20 @@ if protocol_choice == "1":
                     byte3 = file_size.to_bytes(4, 'big')
                     encodedRequestMSG = byte1 + byte2 + byte3
                     if debug:
-                        print('Sending encoded Header to Server. It is ' + int.from_bytes(encodedRequestMSG, 'big') + ' bytes.')
+                        print('Sending encoded Header to Server. It is ' + str(encodedRequestMSG))
+                    #Sending encoded Header to server
                     s.send(encodedRequestMSG)
 
                     with open(file_path, "rb") as f:
                         file_contents = f.read()
+                    #Sending file contents
                     s.send(file_contents)
                     if debug:
-                        print('Sending File contents. It is ' + int.from_bytes(file_contents, 'big') + ' bytes.')
+                        print('Sending File contents. It is ' + str(file_size) + ' bytes.')
 
                     response = s.recv(1)
                     serverResponse = int.from_bytes(response, 'big') >> 5
+                    #Receives header from server and compares Res-code
                     if serverResponse == PUT_CHANGE_CORRECT:
                         print(
                             f"File '{file_name}' has been uploaded to the server!")
@@ -150,16 +155,17 @@ if protocol_choice == "1":
 
                     encodedRequestMSG = byte1 + byte2 + byte3 + byte4
                     if debug:
-                        print('Sending encoded Header to Server. It is ' + int.from_bytes(encodedRequestMSG, 'big') + ' bytes.')
+                        print('Sending encoded Header to Server. It is ' + str(encodedRequestMSG))
+                    #Send encoded header to server
                     s.send(encodedRequestMSG)
 
                     # receive response from server
                     response = s.recv(1)
                     if debug:
-                        print('Received 1 byte from Server: ' + response)
+                        print('Received 1 byte from Server: ' + str(response))
                     serverResponse = int.from_bytes(response, 'big') >> 5
 
-                    # check response code
+                    # check response res-code
                     if serverResponse == PUT_CHANGE_CORRECT:
                         print(
                             "Success: Changed " + old_file_name + " to " + new_file_name)
@@ -169,7 +175,10 @@ if protocol_choice == "1":
                     else:
                         print("Unknown Error with Change")
         elif user_input[0] == "bye":
+            # Close socket connection
             s.close()
+            if debug:
+                print(f"Connection with Server is closed")
             print("Exiting program...")
             break
         elif user_input[0] == "help":
@@ -179,12 +188,12 @@ if protocol_choice == "1":
             encodedRequestMSG = (HELP << 5).to_bytes(1, 'big')
             s.send(encodedRequestMSG)
             if debug:
-                    print('Sending encoded Header to Server. It is ' + int.from_bytes(encodedRequestMSG, 'big') + ' bytes.')
+                    print('Sending encoded Header to Server. It is ' + str(encodedRequestMSG))
             # Receive and check if Res-code is correct
             response = s.recv(1)
             serverRequest = (int.from_bytes(response, 'big')) >> 5
             if serverRequest == HELP_RESPONSE:
-                serverMSG = s.recv(1) #TODO: Check if this works
+                serverMSG = s.recv(31) 
                 print(serverMSG)
             else:
                 print('Could not get Help')
@@ -192,7 +201,7 @@ if protocol_choice == "1":
             encodedRequestMSG = (0b111 << 5).to_bytes(1, 'big')
             s.send(encodedRequestMSG)
             if debug:
-                    print('Sending encoded Header to Server. It is ' + int.from_bytes(encodedRequestMSG, 'big') + ' bytes.')
+                    print('Sending encoded Header to Server. It is ' + str(int.from_bytes(encodedRequestMSG, 'big')) + ' bytes.')
             response = s.recv(1)
             serverRequest = (int.from_bytes(response, 'big')) >> 5
             if serverRequest == ERROR_UNKNOWN_REQUEST:
