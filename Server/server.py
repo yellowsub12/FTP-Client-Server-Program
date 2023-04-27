@@ -56,7 +56,7 @@ if protocol_choice == "1":
                     # receive the name of the file to be sent
                     file_name = conn.recv(file_nameLength).decode()
                     # check if the file exists
-                    file_path = os.path.join("./", file_name)
+                    file_path = os.path.join(file_dir, file_name)
                     if not os.path.exists(file_path):
                         MSGResponse = (ERROR_FILE_NOT_FOUND <<
                                        5).to_bytes(1, 'big')
@@ -94,7 +94,7 @@ if protocol_choice == "1":
                     # receive the contents of the file to be uploaded
                     file_contents = conn.recv(file_size)
                     # save the contents of the file to disk
-                    file_path = os.path.join("./", file_name)
+                    file_path = os.path.join(file_dir, file_name)
                     try:
                         with open(file_path, "wb") as f:
                             f.write(file_contents)
@@ -117,14 +117,14 @@ if protocol_choice == "1":
                     NFL = conn.recv(NFL_length).decode()
 
                     # check if the old file exists
-                    old_file_path = os.path.join("./", OFL)
+                    old_file_path = os.path.join(file_dir, OFL)
                     if not os.path.exists(old_file_path):
                         conn.send(
                             (ERROR_UNSUCESSFUL_CHANGE << 5).to_bytes(1, 'big'))
                         continue
 
                     # check if the new file already exists
-                    new_file_path = os.path.join("./", NFL)
+                    new_file_path = os.path.join(file_dir, NFL)
                     if os.path.exists(new_file_path):
                         conn.send(
                             (ERROR_UNSUCESSFUL_CHANGE << 5).to_bytes(1, 'big'))

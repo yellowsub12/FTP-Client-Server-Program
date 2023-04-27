@@ -30,7 +30,7 @@ else:
     debug = False
 protocol_choice = input("Choose 1 for TCP, or 2 for UDP: ")
 
-file_dir = "Client"
+file_dir = "Client/"
 
 if protocol_choice == "1":
     print("You chose TCP!\n")
@@ -83,7 +83,7 @@ if protocol_choice == "1":
                         file_contents = s.recv(file_size)
 
                         # save the contents of the file to disk
-                        file_path = "./" + file_name
+                        file_path = file_dir + file_name
                         with open(file_path, "wb") as f:
                             f.write(file_contents)
                         print(f"'{file_name}' has been downloaded from server")
@@ -104,7 +104,7 @@ if protocol_choice == "1":
                 if len(file_name) > 31:
                     print('The file name cannot be greater than 31 characters')
                 else:
-                    file_path = os.path.join("./", file_name)
+                    file_path = os.path.join(file_dir, file_name)
                     #Checking if file exists
                     if not os.path.isfile(file_path):
                         print(
