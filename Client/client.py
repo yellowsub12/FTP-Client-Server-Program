@@ -1,6 +1,9 @@
-# This is the client program capable of sending requests, taking commands, and receiving responses.
 # Ali Turkman - 40111059
 # Alexander Santelli - 40164629
+# This is the client program capable of sending requests, taking commands, and receiving responses.
+# We attest that this is our original work.
+# Note : Change file_dir from "Server" to "./" if issues related to directory arise. 
+# Note 2 : Make sure to add test files within this directory from the Tests folder.
 
 import socket
 import os

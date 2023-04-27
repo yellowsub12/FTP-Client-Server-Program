@@ -1,5 +1,8 @@
-# This is the server program capable of receiving requests, performing operations, and sending responses.
 # Ali Turkman - 40111059
+# I attest this is my and Alex's original work.
+# This is the server program capable of receiving requests, performing operations, and sending responses.
+# Note : Change file_dir from "Server" to "./" if issues related to directory arise. 
+# Note 2 : Make sure to add test files within this directory from the Tests folder.
 
 import socket
 import os

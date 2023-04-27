@@ -10,6 +10,8 @@ You can now run the **get**, **put**, **change**, **help** or **bye** command fr
 
 Example : <code>get photo.jpg</code> <code>put ilovetigers.jpg</code> <code>rename tigers.jpg tiger.jpg</code>
 
+Make sure to add test files from the Tests folder to the Client and Server directories.
+
 ## Directory
 
 NOTE: The program presupposes that the client and server file are initiated within the terminal from the main directory, and not from within the server and client folders. If this is not the case, then it is advised to change the <code>file_dir</code> in both server.py and client.py to "./", and this will fix the issue of the programs locating the files. 
